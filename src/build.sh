@@ -1,0 +1,17 @@
+echo "cmake prepare ..."
+if cmake --fresh -B ../_build .; then
+	echo ""
+	echo "begin make ..."
+	cd ../_build
+	make clean
+	if make; then
+		echo ""
+		ls -lah bin/plasma/containmentactions/
+	else
+		exit 1
+	fi
+else
+	echo ""
+	echo "cmake error"
+	exit 1
+fi

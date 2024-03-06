@@ -1,36 +1,23 @@
 /*
- *   Copyright 2015 by MatMoul <matmoul.github.io>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Library General Public License as
- *   published by the Free Software Foundation; either version 2, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details
- *
- *   You should have received a copy of the GNU Library General Public
- *   License along with this program; if not, write to the
- *   Free Software Foundation, Inc.,
- *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+    SPDX-FileCopyrightText: 2009 Chani Armitage <chani@kde.org>
+
+    SPDX-License-Identifier: LGPL-2.0-or-later
+*/
 
 #include "customdesktopmenu.h"
 
 #include <QDebug>
 
+#include <KConfigGroup>
+#include <KIO/ApplicationLauncherJob>
+#include <KPluginFactory>
 #include <Plasma/PluginLoader>
-#include <KRun>
-#include <QVBoxLayout>
 #include <KProcess>
-#include <KServiceGroup>
-#include <KConfig>
-#include <kplugininfo.h>
+#include <KDesktopFile>
 
 CustomDesktopMenu::CustomDesktopMenu(QObject *parent, const QVariantList &args)
-  : Plasma::ContainmentActions(parent, args)
+    : Plasma::ContainmentActions(parent, args)
+    , m_group(new KServiceGroup(QStringLiteral("/")))
 {
 }
 
@@ -38,48 +25,20 @@ CustomDesktopMenu::~CustomDesktopMenu()
 {
 }
 
-void CustomDesktopMenu::restore(const KConfigGroup &config)
+void CustomDesktopMenu::init(const KConfigGroup &)
 {
-  menuconfig.clear();
-  menuconfig = config.readEntry("menuconfig", getDefaultMenu());
 }
 
-QWidget* CustomDesktopMenu::createConfigurationInterface(QWidget* parent)
-{
-  QWidget *widget = new QWidget(parent);
-  QVBoxLayout *lay = new QVBoxLayout();
-  widget->setLayout(lay);
-  widget->setWindowTitle("Configuration");
-  configtextbox = new QTextEdit(widget);
-  configtextbox->setText(menuconfig);
-  lay->addWidget(configtextbox);
-  return widget;
-}
-
-void CustomDesktopMenu::configurationAccepted()
-{
-  if ( configtextbox->toPlainText() == "" ) {
-    menuconfig = getDefaultMenu();
-  } else {
-    menuconfig = configtextbox->toPlainText();
-  }
-}
-
-void CustomDesktopMenu::save(KConfigGroup &config)
-{
-  config.writeEntry("menuconfig", menuconfig);
-}
-
-QList<QAction*> CustomDesktopMenu::contextualActions()
+QList<QAction *> CustomDesktopMenu::contextualActions()
 {
   qDeleteAll(m_actions);
   m_actions.clear();
-  
+
   if (!menuconfig.isEmpty()) {
     QList<QMenu*> menuList;
     menuList.append(0);
     QMenu* curMenu = 0;
-    QStringList configLines = menuconfig.split( "\n", QString::SkipEmptyParts );
+    QStringList configLines = menuconfig.split( "\n", Qt::SkipEmptyParts );
     foreach( QString cfgLine, configLines ) {
       if (!cfgLine.startsWith("#")) {
         if (cfgLine.startsWith("-")) {
@@ -87,7 +46,7 @@ QList<QAction*> CustomDesktopMenu::contextualActions()
         } else if (cfgLine.endsWith(".desktop")) {
           addApp(curMenu, cfgLine);
         } else if (cfgLine.startsWith("[menu]")) {
-          QStringList cfgParts = cfgLine.split( "\t", QString::SkipEmptyParts );
+          QStringList cfgParts = cfgLine.split( "\t", Qt::SkipEmptyParts );
           if (cfgParts.size() == 3) {
             curMenu = addMnu(curMenu, cfgParts[2], cfgParts[1]);
             menuList.append(curMenu);
@@ -101,14 +60,14 @@ QList<QAction*> CustomDesktopMenu::contextualActions()
         } else if (cfgLine == "{favorites}") {
           fillFavorites(curMenu);
         } else if (cfgLine.startsWith("{programs}")) {
-          QStringList cfgParts = cfgLine.split( "\t", QString::SkipEmptyParts );
+          QStringList cfgParts = cfgLine.split( "\t", Qt::SkipEmptyParts );
           if (cfgParts.size() == 2) {
             fillPrograms(curMenu, cfgParts[1]);
           } else {
             fillPrograms(curMenu, "/");
           }
         } else {
-          QStringList cfgParts = cfgLine.split( "\t", QString::SkipEmptyParts );
+          QStringList cfgParts = cfgLine.split( "\t", Qt::SkipEmptyParts );
           if (cfgParts.size() == 3) {
             addCmd(curMenu, cfgParts[1], cfgParts[0], cfgParts[2]);
           } else if (cfgParts.size() == 2) {
@@ -120,9 +79,89 @@ QList<QAction*> CustomDesktopMenu::contextualActions()
       }
     }
   }
-  
+
   return m_actions;
 }
+
+/*
+void CustomDesktopMenu::makeMenu(QMenu *menu, const KServiceGroup::Ptr &group)
+{
+    const auto entries = group->entries(true, true, true);
+    for (const KSycocaEntry::Ptr &p : entries) {
+        if (p->isType(KST_KService)) {
+            const KService::Ptr service(static_cast<KService *>(p.data()));
+
+            QString text = service->name();
+            if (!m_showAppsByName && !service->genericName().isEmpty()) {
+                text = service->genericName();
+            }
+
+            QAction *action = new QAction(QIcon::fromTheme(service->icon()), text, this);
+            connect(action, &QAction::triggered, [action]() {
+                KService::Ptr service = KService::serviceByStorageId(action->data().toString());
+                auto job = new KIO::ApplicationLauncherJob(service);
+                job->start();
+            });
+            action->setData(service->storageId());
+            if (menu) {
+                menu->addAction(action);
+            } else {
+                m_actions << action;
+            }
+        } else if (p->isType(KST_KServiceGroup)) {
+            const KServiceGroup::Ptr service(static_cast<KServiceGroup *>(p.data()));
+            if (service->childCount() == 0) {
+                continue;
+            }
+            QAction *action = new QAction(QIcon::fromTheme(service->icon()), service->caption(), this);
+            QMenu *subMenu = new QMenu();
+            makeMenu(subMenu, service);
+            action->setMenu(subMenu);
+            if (menu) {
+                menu->addAction(action);
+            } else {
+                m_actions << action;
+            }
+        } else if (p->isType(KST_KServiceSeparator)) {
+            if (menu) {
+                menu->addSeparator();
+            }
+        }
+    }
+}
+*/
+
+QWidget *CustomDesktopMenu::createConfigurationInterface(QWidget *parent)
+{
+    QWidget *widget = new QWidget(parent);
+    m_ui.setupUi(widget);
+    widget->setWindowTitle(i18nc("plasma_containmentactions_customdesktopmenu", "Configure Application Launcher Plugin"));
+
+    m_ui.showAppsByName->setChecked(m_showAppsByName);
+    m_ui.configData->setPlainText(menuconfig);
+
+    return widget;
+}
+
+void CustomDesktopMenu::configurationAccepted()
+{
+    m_showAppsByName = m_ui.showAppsByName->isChecked();
+    menuconfig = m_ui.configData->document()->toPlainText();
+}
+
+void CustomDesktopMenu::restore(const KConfigGroup &config)
+{
+    m_showAppsByName = config.readEntry(QStringLiteral("showAppsByName"), true);
+    menuconfig = config.readEntry(QStringLiteral("menuConfig"), getDefaultMenu());
+
+}
+
+void CustomDesktopMenu::save(KConfigGroup &config)
+{
+    config.writeEntry(QStringLiteral("showAppsByName"), m_showAppsByName);
+    config.writeEntry(QStringLiteral("menuConfig"), menuconfig);
+}
+
 
 QString CustomDesktopMenu::getDefaultMenu()
 {
@@ -139,18 +178,18 @@ QString CustomDesktopMenu::getDefaultMenu()
   defMenuConfig += "{programs}\tSystem/\n";
   defMenuConfig += "[end]\n";
   defMenuConfig += "[menu]\tExit\tsystem-shutdown\n";
-  defMenuConfig += "Lock\tsystem-lock-screen\tqdbus-qt5 org.kde.ksmserver /ScreenSaver Lock\n";
-  defMenuConfig += "Disconnect\tsystem-log-out\tqdbus-qt5 org.kde.ksmserver /KSMServer logout -1 0 3\n";
-  defMenuConfig += "Switch User\tsystem-switch-user\tqdbus-qt5 org.kde.krunner /App switchUser\n";
+  defMenuConfig += "Lock\tsystem-lock-screen\tqdbus6 org.kde.KWin /ScreenSaver Lock\n";
+  defMenuConfig += "Disconnect\tsystem-log-out\tqdbus6 org.kde.LogoutPrompt /LogoutPrompt promptLogout\n";
+  defMenuConfig += "Switch User\tsystem-switch-user\tqdbus6 org.kde.KWin /ScreenSaver org.kde.screensaver.SwitchUser\n";
   defMenuConfig += "-\n";
-  defMenuConfig += "Sleep\tsystem-suspend\tqdbus-qt5 org.freedesktop.PowerManagement /org/freedesktop/PowerManagement Suspend\n";
-  defMenuConfig += "Hibernate\tsystem-suspend-hibernate\tqdbus-qt5 org.freedesktop.PowerManagement /org/freedesktop/PowerManagement Hibernate\n";
+  defMenuConfig += "Sleep\tsystem-suspend\tqdbus6 org.freedesktop.PowerManagement /org/freedesktop/PowerManagement Suspend\n";
+  defMenuConfig += "Hibernate\tsystem-suspend-hibernate\tqdbus6 org.freedesktop.PowerManagement /org/freedesktop/PowerManagement Hibernate\n";
   defMenuConfig += "-\n";
-  defMenuConfig += "Restart\tsystem-reboot\tqdbus-qt5 org.kde.ksmserver /KSMServer logout -1 1 3\n";
-  defMenuConfig += "Shut down\tsystem-shutdown\tqdbus-qt5 org.kde.ksmserver /KSMServer logout -1 2 3\n";
+  defMenuConfig += "Restart\tsystem-reboot\tqdbus6 org.kde.LogoutPrompt /LogoutPrompt promptReboot\n";
+  defMenuConfig += "Shut down\tsystem-shutdown\tqdbus6 org.kde.LogoutPrompt /LogoutPrompt promptShutDown\n";
   defMenuConfig += "[end]\n";
   defMenuConfig += "-\n";
-  defMenuConfig += "/usr/share/applications/org.kde.ksysguard.desktop\n";
+  defMenuConfig += "/usr/share/applications/org.kde.plasma-systemmonitor.desktop\n";
   defMenuConfig += "/usr/share/applications/org.kde.konsole.desktop\n";
   return defMenuConfig;
 }
@@ -196,7 +235,9 @@ void CustomDesktopMenu::addCmd(QMenu *menu, const QString &icon, const QString &
     QString source = action->data().toString();
     if (!source.isEmpty()) {
       if (source.endsWith(".desktop")) {
-        new KRun(QUrl("file://"+source), 0);
+        KService::Ptr service = KService::serviceByDesktopPath(action->data().toString());
+        auto job = new KIO::ApplicationLauncherJob(service);
+        job->start();
       } else {
         QStringList cmd = source.split(" ");
         KProcess *process = new KProcess(0);
@@ -229,9 +270,9 @@ QMenu* CustomDesktopMenu::addMnu(QMenu *menu, const QString &icon, const QString
 
 void CustomDesktopMenu::addApp(QMenu *menu, const QString &path)
 {
-  KPluginInfo info(path);
-  if (info.isValid()) {
-    addCmd(menu, info.icon(), info.name(), path);
+  if(KDesktopFile::isDesktopFile(path) == true) {
+    KDesktopFile dskFile(path);
+    addCmd(menu, dskFile.readIcon(), dskFile.readName(), path);
   } else {
     addCmd(menu, "", path, path);
   }
@@ -240,36 +281,37 @@ void CustomDesktopMenu::addApp(QMenu *menu, const QString &path)
 void CustomDesktopMenu::fillPrograms(QMenu *menu, const QString &path)
 {
   KServiceGroup::Ptr root = KServiceGroup::group(path);
-  //if(root.isNull()){
-  //  return;
-  //}
   KServiceGroup::List list = root->entries(true, true, true);
-  foreach (const KServiceGroup::SPtr &service, list){
-    if (service->isSeparator()) {
-      menu->addSeparator();
-    } else if (service->property("DesktopEntryPath").toString().isEmpty()) {
-      KServiceGroup::Ptr dir = KServiceGroup::group(service->name());
-      if(dir->childCount()>0){
-        QMenu* menu2 = addMnu(menu, dir->icon(), dir->caption());
-        fillPrograms(menu2, service->name());
+  for (const KSycocaEntry::Ptr &p : list){
+    if(p->isType(KST_KService)) {
+      addApp(menu, p->entryPath());
+    } else if(p->isType(KST_KServiceGroup)) {
+      const KServiceGroup::Ptr service(static_cast<KServiceGroup *>(p.data()));
+      if(service->childCount() == 0) {
+        continue;
       }
-    } else {
-      addApp(menu, service->property("DesktopEntryPath").toString());
+      QMenu* menu2 = addMnu(menu, service->icon(), service->caption());
+      fillPrograms(menu2, p->name());
+    } else if(p->isType(KST_KServiceSeparator)) {
+      menu->addSeparator();
     }
   }
 }
 
 void CustomDesktopMenu::fillFavorites(QMenu *menu)
 {
+  /*
   KConfig config("kickoffrc");
   KConfigGroup favoritesGroup = config.group("Favorites");
   QList<QString> favoriteList = favoritesGroup.readEntry("FavoriteURLs", QList<QString>());
   foreach (const QString &source, favoriteList) {
     addApp(menu, source);
   }
+  */
 }
 
-K_EXPORT_PLASMA_CONTAINMENTACTIONS_WITH_JSON(customdesktopmenu, CustomDesktopMenu, "plasma-containmentactions-customdesktopmenu.json")
 
+
+K_PLUGIN_CLASS_WITH_JSON(CustomDesktopMenu, "plasma-containmentactions-customdesktopmenu.json")
 
 #include "customdesktopmenu.moc"
