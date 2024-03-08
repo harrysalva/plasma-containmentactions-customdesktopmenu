@@ -65,10 +65,13 @@ QString CustomDesktopMenu::getDefaultConfig()
   defMenuConfig += "{programs}\n";
   defMenuConfig += "[end]\n";
   defMenuConfig += "-\n";
-  defMenuConfig += "#/usr/share/applications/org.kde.dolphin.desktop\n";
+  defMenuConfig += "/usr/share/applications/org.kde.dolphin.desktop\n";
+  defMenuConfig += "/usr/share/applications/org.kde.kate.desktop\n";
+	defMenuConfig += "#/usr/share/applications/org.kde.kcalc.desktop\n";
   defMenuConfig += "-\n";
   defMenuConfig += "[menu]\tSystem\tconfigure-shortcuts\n";
   defMenuConfig += "{programs}\tSettingsmenu/\n";
+  defMenuConfig += "-\n";
   defMenuConfig += "{programs}\tSystem/\n";
   defMenuConfig += "[end]\n";
   defMenuConfig += "[menu]\tExit\tsystem-shutdown\n";
