@@ -25,24 +25,6 @@ set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
-#include(ECMMarkNonGuiExecutable)
-#include(CMakePackageConfigHelpers)
-#include(WriteBasicConfigVersionFile)
-#include(CheckIncludeFiles)
-#include(FeatureSummary)
-#include(ECMOptionalAddSubdirectory)
-#include(ECMQtDeclareLoggingCategory)
-#include(ECMQueryQt)
-#include(ECMInstallIcons)
-#include(KDEClangFormat)
-#include(KDEGitCommitHooks)
-#include(ECMConfiguredInstall)
-#include(ECMGenerateDBusServiceFile)
-#include(ECMFindQmlModule)
-#include(ECMGenerateExportHeader)
-#include(ECMGenerateQmlTypes)
-#include(ECMDeprecationSettings)
-#include(ECMQmlModule)
 
 find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Svg Widgets Quick QuickWidgets Concurrent Network Core5Compat DBus ShaderTools)
 find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS
@@ -51,16 +33,10 @@ find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS
                     CoreAddons KIO Prison Package
                     GuiAddons Archive ItemModels IconThemes UnitConversion TextEditor StatusNotifierItem
                     OPTIONAL_COMPONENTS DocTools)
-#find_package(Plasma5Support ${PROJECT_DEP_VERSION} REQUIRED)
 find_package(Plasma ${PROJECT_DEP_VERSION} REQUIRED)
-#find_package(PlasmaQuick ${PROJECT_DEP_VERSION} REQUIRED)
-#find_package(KWayland ${PROJECT_DEP_VERSION} REQUIRED)
-#find_package(PlasmaActivities ${PROJECT_DEP_VERSION} REQUIRED)
-#find_package(PlasmaActivitiesStats ${PROJECT_DEP_VERSION} REQUIRED)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-#add_subdirectory(containmentactions)
 add_definitions(-DTRANSLATION_DOMAIN=\"plasma_containmentactions_customdesktopmenu\")
 
 set(customdesktopmenu_SRCS
