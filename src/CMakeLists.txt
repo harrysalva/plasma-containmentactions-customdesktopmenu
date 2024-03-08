@@ -47,7 +47,7 @@ ki18n_wrap_ui(customdesktopmenu_SRCS config.ui)
 kcoreaddons_add_plugin(plasma_containmentactions_customdesktopmenu SOURCES ${customdesktopmenu_SRCS} INSTALL_NAMESPACE "plasma/containmentactions")
 
 set_target_properties(plasma_containmentactions_customdesktopmenu PROPERTIES
-    OUTPUT_NAME customdesktopmenu
+    OUTPUT_NAME matmoul-customdesktopmenu
 )
 
 target_link_libraries(plasma_containmentactions_customdesktopmenu Plasma::Plasma KF6::KIOCore KF6::KIOWidgets KF6::I18n)
