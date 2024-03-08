@@ -1,17 +1,17 @@
 {
-    "KPlugin": {
-        "Authors": [
-            {
-                "Email": "matmoul@gmail.com",
-                "Name": "MatMoul"
-            }
-        ],
-        "Description": "Custom Desktop Menu",
-        "EnabledByDefault": true,
-        "Icon": "preferences-desktop-launch-feedback",
-        "License": "GPL",
-        "Name": "Custom Desktop Menu",
-        "Website": "https://github.com/matmoul"
-    },
-    "X-Plasma-HasConfigurationInterface": true
+	"KPlugin": {
+		"Authors": [
+			{
+				"Email": "matmoul@gmail.com",
+				"Name": "MatMoul"
+			}
+		],
+		"Description": "Custom Desktop Menu",
+		"EnabledByDefault": true,
+		"Icon": "preferences-desktop-launch-feedback",
+		"License": "GPL",
+		"Name": "Custom Desktop Menu",
+		"Website": "https://github.com/matmoul"
+	},
+	"X-Plasma-HasConfigurationInterface": true
 }

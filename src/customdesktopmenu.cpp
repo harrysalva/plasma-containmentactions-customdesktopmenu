@@ -1,17 +1,8 @@
-/*
-    SPDX-FileCopyrightText: 2009 Chani Armitage <chani@kde.org>
-
-    SPDX-License-Identifier: LGPL-2.0-or-later
-*/
-
 #include "customdesktopmenu.h"
-
-#include <QDebug>
 
 #include <KConfigGroup>
 #include <KIO/ApplicationLauncherJob>
 #include <KPluginFactory>
-#include <Plasma/PluginLoader>
 #include <KProcess>
 #include <KDesktopFile>
 
@@ -20,7 +11,6 @@ CustomDesktopMenu::CustomDesktopMenu(QObject *parent, const QVariantList &args)
     , m_group(new KServiceGroup(QStringLiteral("/")))
 {
 }
-
 CustomDesktopMenu::~CustomDesktopMenu()
 {
 }
@@ -33,137 +23,41 @@ QList<QAction *> CustomDesktopMenu::contextualActions()
 {
   qDeleteAll(m_actions);
   m_actions.clear();
-
-  if (!menuconfig.isEmpty()) {
-    QList<QMenu*> menuList;
-    menuList.append(0);
-    QMenu* curMenu = 0;
-    QStringList configLines = menuconfig.split( "\n", Qt::SkipEmptyParts );
-    foreach( QString cfgLine, configLines ) {
-      if (!cfgLine.startsWith("#")) {
-        if (cfgLine.startsWith("-")) {
-          addSep(curMenu);
-        } else if (cfgLine.endsWith(".desktop")) {
-          addApp(curMenu, cfgLine);
-        } else if (cfgLine.startsWith("[menu]")) {
-          QStringList cfgParts = cfgLine.split( "\t", Qt::SkipEmptyParts );
-          if (cfgParts.size() == 3) {
-            curMenu = addMnu(curMenu, cfgParts[2], cfgParts[1]);
-            menuList.append(curMenu);
-          } else if (cfgParts.size() == 2) {
-            curMenu = addMnu(curMenu, "", cfgParts[1]);
-            menuList.append(curMenu);
-          }
-        } else if (cfgLine.startsWith("[end]")) {
-          menuList.removeLast();
-          curMenu = menuList.last();
-        } else if (cfgLine == "{favorites}") {
-          fillFavorites(curMenu);
-        } else if (cfgLine.startsWith("{programs}")) {
-          QStringList cfgParts = cfgLine.split( "\t", Qt::SkipEmptyParts );
-          if (cfgParts.size() == 2) {
-            fillPrograms(curMenu, cfgParts[1]);
-          } else {
-            fillPrograms(curMenu, "/");
-          }
-        } else {
-          QStringList cfgParts = cfgLine.split( "\t", Qt::SkipEmptyParts );
-          if (cfgParts.size() == 3) {
-            addCmd(curMenu, cfgParts[1], cfgParts[0], cfgParts[2]);
-          } else if (cfgParts.size() == 2) {
-            addCmd(curMenu, "", cfgParts[0], cfgParts[1]);
-          } else {
-            addItm(curMenu, "", cfgParts[0]);
-          }
-        }
-      }
-    }
-  }
-
+  
+  parseConfig();
+  
   return m_actions;
 }
 
-/*
-void CustomDesktopMenu::makeMenu(QMenu *menu, const KServiceGroup::Ptr &group)
-{
-    const auto entries = group->entries(true, true, true);
-    for (const KSycocaEntry::Ptr &p : entries) {
-        if (p->isType(KST_KService)) {
-            const KService::Ptr service(static_cast<KService *>(p.data()));
-
-            QString text = service->name();
-            if (!m_showAppsByName && !service->genericName().isEmpty()) {
-                text = service->genericName();
-            }
-
-            QAction *action = new QAction(QIcon::fromTheme(service->icon()), text, this);
-            connect(action, &QAction::triggered, [action]() {
-                KService::Ptr service = KService::serviceByStorageId(action->data().toString());
-                auto job = new KIO::ApplicationLauncherJob(service);
-                job->start();
-            });
-            action->setData(service->storageId());
-            if (menu) {
-                menu->addAction(action);
-            } else {
-                m_actions << action;
-            }
-        } else if (p->isType(KST_KServiceGroup)) {
-            const KServiceGroup::Ptr service(static_cast<KServiceGroup *>(p.data()));
-            if (service->childCount() == 0) {
-                continue;
-            }
-            QAction *action = new QAction(QIcon::fromTheme(service->icon()), service->caption(), this);
-            QMenu *subMenu = new QMenu();
-            makeMenu(subMenu, service);
-            action->setMenu(subMenu);
-            if (menu) {
-                menu->addAction(action);
-            } else {
-                m_actions << action;
-            }
-        } else if (p->isType(KST_KServiceSeparator)) {
-            if (menu) {
-                menu->addSeparator();
-            }
-        }
-    }
-}
-*/
-
 QWidget *CustomDesktopMenu::createConfigurationInterface(QWidget *parent)
 {
-    QWidget *widget = new QWidget(parent);
-    m_ui.setupUi(widget);
-    widget->setWindowTitle(i18nc("plasma_containmentactions_customdesktopmenu", "Configure Application Launcher Plugin"));
-
-    m_ui.showAppsByName->setChecked(m_showAppsByName);
-    m_ui.configData->setPlainText(menuconfig);
-
-    return widget;
+  QWidget *widget = new QWidget(parent);
+  m_ui.setupUi(widget);
+  widget->setWindowTitle(i18nc("plasma_containmentactions_customdesktopmenu", "Configure Application Launcher Plugin"));
+  m_ui.configData->setPlainText(m_menuConfig);
+  m_ui.showAppsByName->setChecked(m_showAppsByName);
+  return widget;
 }
 
 void CustomDesktopMenu::configurationAccepted()
 {
-    m_showAppsByName = m_ui.showAppsByName->isChecked();
-    menuconfig = m_ui.configData->document()->toPlainText();
+  m_menuConfig = m_ui.configData->document()->toPlainText();
+  m_showAppsByName = m_ui.showAppsByName->isChecked();
 }
 
 void CustomDesktopMenu::restore(const KConfigGroup &config)
 {
-    m_showAppsByName = config.readEntry(QStringLiteral("showAppsByName"), true);
-    menuconfig = config.readEntry(QStringLiteral("menuConfig"), getDefaultMenu());
-
+  m_menuConfig = config.readEntry(QStringLiteral("menuConfig"), getDefaultConfig());
+  m_showAppsByName = config.readEntry(QStringLiteral("showAppsByName"), true);
 }
 
 void CustomDesktopMenu::save(KConfigGroup &config)
 {
-    config.writeEntry(QStringLiteral("showAppsByName"), m_showAppsByName);
-    config.writeEntry(QStringLiteral("menuConfig"), menuconfig);
+  config.writeEntry(QStringLiteral("menuConfig"), m_menuConfig);
+  config.writeEntry(QStringLiteral("showAppsByName"), m_showAppsByName);
 }
 
-
-QString CustomDesktopMenu::getDefaultMenu()
+QString CustomDesktopMenu::getDefaultConfig()
 {
   QString defMenuConfig = "{favorites}\n";
   defMenuConfig += "-\n";
@@ -194,122 +88,125 @@ QString CustomDesktopMenu::getDefaultMenu()
   return defMenuConfig;
 }
 
-QIcon CustomDesktopMenu::getIcon(const QString &txt)
+void CustomDesktopMenu::parseConfig()
 {
-  QIcon icon = QIcon::fromTheme(txt);
-  return icon;
-}
-
-void CustomDesktopMenu::addSep(QMenu *menu)
-{
-  QAction *action = new QAction(this);
-  action->setSeparator(true);
-  if (menu) {
-    menu->addAction(action);
-  } else {
-    m_actions << action;
-  }
-}
-
-void CustomDesktopMenu::addItm(QMenu *menu, const QString &icon, const QString &txt)
-{
-  QString text = txt;
-  text.replace("&", "&&"); //escaping
-  QAction *action;
-  action = new QAction(getIcon(icon), text, this);
-  if (menu) {
-    menu->addAction(action);
-  } else {
-    m_actions << action;
-  }
-}
-
-void CustomDesktopMenu::addCmd(QMenu *menu, const QString &icon, const QString &txt, const QString &cmd)
-{
-  QString text = txt;
-  text.replace("&", "&&"); //escaping
-  QAction *action;
-  action = new QAction(getIcon(icon), text, this);
-  action->setData(cmd);
-  connect(action, &QAction::triggered, [action](){
-    QString source = action->data().toString();
-    if (!source.isEmpty()) {
-      if (source.endsWith(".desktop")) {
-        KService::Ptr service = KService::serviceByDesktopPath(action->data().toString());
-        auto job = new KIO::ApplicationLauncherJob(service);
-        job->start();
+  if (m_menuConfig.isEmpty()) return;
+  QStringList configLines = m_menuConfig.split("\n", Qt::SkipEmptyParts);
+  foreach(QString cfgLine, configLines) {
+    if (cfgLine.startsWith("#")) continue;
+    QAction *action = nullptr;
+    if (cfgLine.startsWith("-")) {
+      // Separator
+      action = new QAction(this);
+      action->setSeparator(true);
+    } else if (cfgLine.startsWith("[menu]")) {
+      // Begin menu
+      QStringList cfgParts = cfgLine.split("\t", Qt::SkipEmptyParts);
+      QString text = "";
+      QIcon icon;
+      if (cfgParts.size() > 1) text = cfgParts[1].replace("&", "&&");
+      if (cfgParts.size() > 2) icon = QIcon::fromTheme(cfgParts[2]);
+      QMenu *subMenu = new QMenu();
+      action = new QAction(icon, text, this);
+      action->setMenu(subMenu);
+      addAction(action);
+      m_menuList.append(subMenu);
+      action = nullptr;
+    } else if (cfgLine.startsWith("[end]")) {
+      // End menu
+      m_menuList.removeLast();
+    } else if (cfgLine.endsWith(".desktop")) {
+      // .desktop file
+      if(KDesktopFile::isDesktopFile(cfgLine) == true) {
+        KDesktopFile desktopFile(cfgLine);
+        action = new QAction(QIcon::fromTheme(desktopFile.readIcon()), desktopFile.readName(), this);
+        action->setData(cfgLine);
+        connect(action, &QAction::triggered, [action](){
+          KService::Ptr service = KService::serviceByDesktopPath(action->data().toString());
+          auto job = new KIO::ApplicationLauncherJob(service);
+          job->start();
+        });
       } else {
-        QStringList cmd = source.split(" ");
-        KProcess *process = new KProcess(0);
-        process->startDetached(cmd);
+        action = new QAction(cfgLine, this);
+      }
+    } else if (cfgLine.startsWith("{programs}")) {
+      // programs
+      QStringList cfgParts = cfgLine.split("\t", Qt::SkipEmptyParts);
+      QString path = "/";
+      if (cfgParts.size() > 1) path = cfgParts[1];
+      fillPrograms(path);
+    } else if (cfgLine == "{favorites}") {
+      // favorites
+      // Not implemented
+    } else {
+      // cmd
+      QStringList cfgParts = cfgLine.split("\t", Qt::SkipEmptyParts);
+      QString text = "";
+      QIcon icon;
+      QString cmd = "";
+      text = cfgParts[0].replace("&", "&&");
+      if (cfgParts.size() > 1) icon = QIcon::fromTheme(cfgParts[1]);
+      action = new QAction(icon, text, this);
+      if (cfgParts.size() > 2) {
+        action->setData(cfgParts[2]);
+        connect(action, &QAction::triggered, [action](){
+          KProcess *process = new KProcess(0);
+          process->startDetached(action->data().toString().split(" "));
+        });
       }
     }
-  });
-  if (menu) {
-    menu->addAction(action);
-  } else {
-    m_actions << action;
+    addAction(action);
   }
 }
 
-QMenu* CustomDesktopMenu::addMnu(QMenu *menu, const QString &icon, const QString &txt)
+void CustomDesktopMenu::addAction(QAction* action)
 {
-  QString text = txt;
-  text.replace("&", "&&"); //escaping
-  QAction *action;
-  action = new QAction(getIcon(icon), text, this);
-  QMenu *subMenu = new QMenu();
-  action->setMenu(subMenu);
-  if (menu) {
-    menu->addAction(action);
-  } else {
-    m_actions << action;
-  }
-  return subMenu;
-}
-
-void CustomDesktopMenu::addApp(QMenu *menu, const QString &path)
-{
-  if(KDesktopFile::isDesktopFile(path) == true) {
-    KDesktopFile dskFile(path);
-    addCmd(menu, dskFile.readIcon(), dskFile.readName(), path);
-  } else {
-    addCmd(menu, "", path, path);
+  if (action) {
+    if (m_menuList.size() == 0) m_actions << action;
+    else m_menuList.last()->addAction(action);
   }
 }
 
-void CustomDesktopMenu::fillPrograms(QMenu *menu, const QString &path)
+void CustomDesktopMenu::fillPrograms(const QString& path)
 {
   KServiceGroup::Ptr root = KServiceGroup::group(path);
   KServiceGroup::List list = root->entries(true, true, true);
   for (const KSycocaEntry::Ptr &p : list){
+    QAction *action = nullptr;
     if(p->isType(KST_KService)) {
-      addApp(menu, p->entryPath());
+      if(KDesktopFile::isDesktopFile(p->entryPath()) == true) {
+        KDesktopFile desktopFile(p->entryPath());
+        action = new QAction(QIcon::fromTheme(desktopFile.readIcon()), desktopFile.readName(), this);
+        action->setData(p->entryPath());
+        connect(action, &QAction::triggered, [action](){
+          KService::Ptr service = KService::serviceByDesktopPath(action->data().toString());
+          auto job = new KIO::ApplicationLauncherJob(service);
+          job->start();
+        });
+        addAction(action);
+      } else {
+        action = new QAction(p->entryPath(), this);
+        addAction(action);
+      }
     } else if(p->isType(KST_KServiceGroup)) {
       const KServiceGroup::Ptr service(static_cast<KServiceGroup *>(p.data()));
-      if(service->childCount() == 0) {
-        continue;
-      }
-      QMenu* menu2 = addMnu(menu, service->icon(), service->caption());
-      fillPrograms(menu2, p->name());
+      if(service->childCount() == 0) continue;
+      QString text = service->caption();
+      QIcon icon = QIcon::fromTheme(service->icon());
+      QMenu *subMenu = new QMenu();
+      action = new QAction(icon, text, this);
+      action->setMenu(subMenu);
+      addAction(action);
+      m_menuList.append(subMenu);
+      fillPrograms(p->name());
+      m_menuList.removeLast();
     } else if(p->isType(KST_KServiceSeparator)) {
-      menu->addSeparator();
+      action = new QAction(this);
+      action->setSeparator(true);
+      addAction(action);
     }
   }
 }
-
-void CustomDesktopMenu::fillFavorites(QMenu *menu)
-{
-  /*
-  KConfig config("kickoffrc");
-  KConfigGroup favoritesGroup = config.group("Favorites");
-  QList<QString> favoriteList = favoritesGroup.readEntry("FavoriteURLs", QList<QString>());
-  foreach (const QString &source, favoriteList) {
-    addApp(menu, source);
-  }
-  */
-}
-
 
 
 K_PLUGIN_CLASS_WITH_JSON(CustomDesktopMenu, "plasma-containmentactions-customdesktopmenu.json")
