@@ -2,8 +2,7 @@
 
 Custom desktop menu for Plasma 6
 
-<img width="250px" title="menu" alt="menu" src=".assets/menu.png">
-<img width="350px" title="config" alt="config" src=".assets/config.png">
+<img width="250px" title="menu" alt="menu" src=".assets/menu.png"> <img width="350px" title="config" alt="config" src=".assets/config.png">
 
 ## Build and install
 
