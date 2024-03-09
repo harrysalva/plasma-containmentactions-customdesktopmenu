@@ -1,8 +1,12 @@
+#!/bin/bash
+
+BUILDDIR=../_build
+
 echo "cmake prepare ..."
-if cmake --fresh -B ../_build .; then
+if cmake --fresh -B ${BUILDDIR} .; then
 	echo ""
 	echo "begin make ..."
-	cd ../_build
+	cd ${BUILDDIR}
 	make clean
 	if make; then
 		echo ""
