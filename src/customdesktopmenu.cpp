@@ -124,7 +124,7 @@ void CustomDesktopMenu::parseConfig()
       // .desktop file
       if(KDesktopFile::isDesktopFile(cfgLine) == true) {
         KDesktopFile desktopFile(cfgLine);
-        QString text = desktopFile.name();
+        QString text = desktopFile.readName();
         if (!m_showAppsByName && !desktopFile.readGenericName().isEmpty()) {
           text = desktopFile.readGenericName();
         }
