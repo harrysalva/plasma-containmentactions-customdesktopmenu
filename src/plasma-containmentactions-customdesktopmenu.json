@@ -11,7 +11,7 @@
 		"Icon": "preferences-desktop-launch-feedback",
 		"License": "GPL",
 		"Name": "Custom Desktop Menu",
-		"Website": "https://github.com/matmoul"
+		"Website": "https://github.com/MatMoul/plasma-containmentactions-customdesktopmenu"
 	},
 	"X-Plasma-HasConfigurationInterface": true
 }
