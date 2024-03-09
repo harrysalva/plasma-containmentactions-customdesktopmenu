@@ -122,7 +122,11 @@ void CustomDesktopMenu::parseConfig()
       // .desktop file
       if(KDesktopFile::isDesktopFile(cfgLine) == true) {
         KDesktopFile desktopFile(cfgLine);
-        action = new QAction(QIcon::fromTheme(desktopFile.readIcon()), desktopFile.readName(), this);
+        QString text = desktopFile.name();
+        if (!m_showAppsByName && !desktopFile.readGenericName().isEmpty()) {
+          text = desktopFile.readGenericName();
+        }
+        action = new QAction(QIcon::fromTheme(desktopFile.readIcon()), text, this);
         action->setData(cfgLine);
         connect(action, &QAction::triggered, [action](){
           KService::Ptr service = KService::serviceByDesktopPath(action->data().toString());
@@ -179,7 +183,11 @@ void CustomDesktopMenu::fillPrograms(const QString& path)
     if(p->isType(KST_KService)) {
       if(KDesktopFile::isDesktopFile(p->entryPath()) == true) {
         KDesktopFile desktopFile(p->entryPath());
-        action = new QAction(QIcon::fromTheme(desktopFile.readIcon()), desktopFile.readName(), this);
+        QString text = p->name();
+        if (!m_showAppsByName && !desktopFile.readGenericName().isEmpty()) {
+          text = desktopFile.readGenericName();
+        }
+        action = new QAction(QIcon::fromTheme(desktopFile.readIcon()), text, this);
         action->setData(p->entryPath());
         connect(action, &QAction::triggered, [action](){
           KService::Ptr service = KService::serviceByDesktopPath(action->data().toString());
