@@ -34,6 +34,8 @@ QWidget *CustomDesktopMenu::createConfigurationInterface(QWidget *parent)
   QWidget *widget = new QWidget(parent);
   m_ui.setupUi(widget);
   widget->setWindowTitle(i18nc("plasma_containmentactions_customdesktopmenu", "Configure Application Launcher Plugin"));
+  widget->setFixedWidth(660);
+  widget->setFixedHeight(400);
   m_ui.configData->setPlainText(m_menuConfig);
   m_ui.showAppsByName->setChecked(m_showAppsByName);
   return widget;
